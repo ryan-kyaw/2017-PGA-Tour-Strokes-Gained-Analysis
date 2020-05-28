@@ -1,0 +1,129 @@
+---
+title: "2017 PGA Tour Statistical Analysis"
+author: "Ryan Kyaw"
+date: "May 2, 2020"
+output: html_document
+---
+Is there statistical significance that any Strokes Gained statistics directly correlates to lower golf scores?
+
+```{r, echo = FALSE}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r, echo = FALSE}
+df_2017 <- read.csv("2017.csv")
+```
+
+Looking at the data from the 2017 golf season, we can use a graphical analysis to see how strokes gained compares to average score. 
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG_PUTTING_PER_ROUND, y = df_2017$AVG_SCORE), color = "blue") +
+  ggtitle("SG:Putting vs Average Score")+
+  xlab("SG:Putting")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG_PUTTING_PER_ROUND, y = df_2017$AVG_SCORE), color = "red")
+```
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG.OTT, y = df_2017$AVG_SCORE), color = "brown")+
+  ggtitle("SG:OTT vs Average Score")+
+  xlab("SG:OTT")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG.OTT, y = df_2017$AVG_SCORE), color = "blue")
+```
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG.APR, y = df_2017$AVG_SCORE), color = "red")+
+  ggtitle("SG:APR vs Average Score")+
+  xlab("SG:APR")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG.APR, y = df_2017$AVG_SCORE), color = "blue")
+```
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG.ARG, y = df_2017$AVG_SCORE), color = "purple")+
+  ggtitle("SG:ARG vs Average Score")+
+  xlab("SG:ARG")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG.ARG, y = df_2017$AVG_SCORE), color = "red")
+```
+
+```{r}
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG.APR)
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG_PUTTING_PER_ROUND)
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG.ARG)
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG.OTT)
+```
+
+The negative correlation values appear to imply that the higher SG values correlate to lower scores. 
+
+Consider the density plots for each of our parameters.
+
+```{r}
+ggplot()+
+  geom_density(aes(x = df_2017$AVG_SCORE), fill = "red", alpha = 0.3)
+```
+
+```{r}
+ggplot()+
+  geom_density(aes(x = df_2017$SG_PUTTING_PER_ROUND), fill = "blue", alpha = 0.3)+
+  geom_density(aes(x = df_2017$SG.APR), fill = "brown", alpha = 0.3)+
+  geom_density(aes(x = df_2017$SG.OTT), fill = "red", alpha = 0.3)+
+  geom_density(aes(x = df_2017$SG.ARG), fill = "gold", alpha = 0.3)
+```
+
+Each of our parameters appear to be normally distributed. 
+
+Let's create linear models for each of the Strokes Gained categories versus Scoring Average. 
+
+```{r}
+lm_putt <- lm(AVG_SCORE ~ SG_PUTTING_PER_ROUND, data = df_2017)
+summary(lm_putt)
+BIC(lm_putt)
+```
+
+```{r}
+lm_drive <- lm(AVG_SCORE ~ SG.OTT, data = df_2017)
+summary(lm_drive)
+BIC(lm_drive)
+```
+
+```{r}
+lm_ARG <- lm(AVG_SCORE ~ SG.ARG, data = df_2017)
+summary(lm_ARG)
+```
+
+```{r}
+lm_APR <- lm(AVG_SCORE ~ SG.APR, data = df_2017)
+summary(lm_APR)
+```
+
+Let's run a hypothesis test to see if the correlation between the Strokes Gained variables and Average Score is statistically significant. 
+
+Pearson Correlation Coefficient
+
+```{r}
+putttest <- cor.test(df_2017$SG_PUTTING_PER_ROUND, df_2017$AVG_SCORE, method = "pearson")
+putttest
+```
+
+```{r}
+argtest <- cor.test(df_2017$SG.ARG, df_2017$AVG_SCORE, method = "pearson")
+argtest
+```
+
+```{r}
+aprtest <- cor.test(df_2017$SG.APR, df_2017$AVG_SCORE, method = "pearson")
+aprtest
+```
+
+```{r}
+otttest <- cor.test(df_2017$SG.OTT, df_2017$AVG_SCORE, method = "pearson")
+otttest
+```
+
