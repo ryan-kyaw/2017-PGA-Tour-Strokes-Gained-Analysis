@@ -1,0 +1,158 @@
+---
+title: "PGA Stats Analysis and ML"
+author: "Ryan Kyaw"
+date: "June 5, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Is there statistical significance that any Strokes Gained statistics directly correlates to lower golf scores?
+
+Let's look at the 2017 PGA Tour Strokes Gained and Scoring Average data to see.
+
+```{r}
+df_2017 <- read.csv("2017.csv")
+```
+
+Looking at the data from the 2017 golf season, we can use a graphical analysis and correlation coefficient to see how strokes gained compares to average score. 
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG_PUTTING_PER_ROUND, y = df_2017$AVG_SCORE), color = "blue") +
+  ggtitle("SG:Putting vs Average Score")+
+  xlab("SG:Putting")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG_PUTTING_PER_ROUND, y = df_2017$AVG_SCORE), color = "red")
+
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG_PUTTING_PER_ROUND)
+```
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG.OTT, y = df_2017$AVG_SCORE), color = "brown")+
+  ggtitle("SG:OTT vs Average Score")+
+  xlab("SG:OTT")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG.OTT, y = df_2017$AVG_SCORE), color = "blue")
+
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG.OTT)
+```
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG.APR, y = df_2017$AVG_SCORE), color = "red")+
+  ggtitle("SG:APR vs Average Score")+
+  xlab("SG:APR")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG.APR, y = df_2017$AVG_SCORE), color = "blue")
+
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG.APR)
+```
+
+```{r}
+ggplot(df_2017) +
+  geom_point(aes(x = df_2017$SG.ARG, y = df_2017$AVG_SCORE), color = "purple")+
+  ggtitle("SG:ARG vs Average Score")+
+  xlab("SG:ARG")+
+  ylab("Average Score")+
+  geom_smooth(method = "lm", aes(x = df_2017$SG.ARG, y = df_2017$AVG_SCORE), color = "red")
+
+cor(x = df_2017$AVG_SCORE, y = df_2017$SG.ARG)
+```
+
+The negative correlation values appear to imply that the higher SG values correlate to lower scores.
+
+Let's create linear models for each of the Strokes Gained categories versus Scoring Average. 
+
+```{r}
+lm_putt <- lm(AVG_SCORE ~ SG_PUTTING_PER_ROUND, data = df_2017)
+summary(lm_putt)
+```
+
+```{r}
+lm_drive <- lm(AVG_SCORE ~ SG.OTT, data = df_2017)
+summary(lm_drive)
+```
+
+```{r}
+lm_ARG <- lm(AVG_SCORE ~ SG.ARG, data = df_2017)
+summary(lm_ARG)
+```
+
+```{r}
+lm_APR <- lm(AVG_SCORE ~ SG.APR, data = df_2017)
+summary(lm_APR)
+```
+
+Despite the relatively low R-squared values, especially with Strokes Gained Putting vs Average Score, the significant coefficient estimates make these models relatively strong in predicting average score.  Human subjects can result in highly varied golf results, and this amount of noise can explain the low R-squared values. 
+
+Now, let's run a hypothesis test to see if the correlation between the Strokes Gained variables and Average Score is statistically significant. 
+
+Pearson Correlation Coefficient
+
+```{r}
+putttest <- cor.test(df_2017$SG_PUTTING_PER_ROUND, df_2017$AVG_SCORE, method = "pearson")
+putttest
+```
+
+```{r}
+argtest <- cor.test(df_2017$SG.ARG, df_2017$AVG_SCORE, method = "pearson")
+argtest
+```
+
+```{r}
+aprtest <- cor.test(df_2017$SG.APR, df_2017$AVG_SCORE, method = "pearson")
+aprtest
+```
+
+```{r}
+otttest <- cor.test(df_2017$SG.OTT, df_2017$AVG_SCORE, method = "pearson")
+otttest
+```
+
+All of these p-values are significant, and this means that we can confirm that the true correlation is not equal to 0.  Therefore, we can trust our calculate correlation coefficients. 
+
+Now, let's use linear regression to create a model that uses the Strokes Gained data to predict a players average scores. 
+
+First, lets Train/Test split our data. 
+
+```{r}
+df_2017$id <- 1:nrow(df_2017)
+df_train_2017 <- df_2017 %>% sample_frac(0.7)
+df_test_2017 <- df_2017 %>% anti_join(df_train_2017)
+df_train_2017$id <- NULL
+df_test_2017$id <- NULL
+write.csv(df_test_2017, "test.csv", row.names = FALSE)
+rm(df_test_2017)
+```
+
+Now, we will use the training data to create our model.
+
+```{r}
+train_model <- lm(AVG_SCORE ~ SG_PUTTING_PER_ROUND + SG.OTT + SG.APR + SG.ARG,
+                  data = df_train_2017)
+summary(train_model)
+```
+
+Then, we load back the test data and use the model to predict on the test data.
+
+```{r}
+df_test_2017 <- read.csv("test.csv")
+avg_score_actual <- df_test_2017$AVG_SCORE
+avg_score_pred <- predict(train_model, df_test_2017)
+pred_vs_actual_scores <- data.frame(cbind(actual = avg_score_actual, predicted = avg_score_pred))
+```
+
+To analyze how effective our model is, we calculate the mean absolute percentage error
+```{r}
+MAPE_home <- mean(abs((pred_vs_actual_scores$predicted - pred_vs_actual_scores$actual))
+                  /pred_vs_actual_scores$actual)
+```
+
+This is a significantly low MAPE value, and this implies that our model does a good job in being accurate in predicting a player's average score from their Strokes Gained Data. 
+
+This further proves the strength of the Strokes Gained statistic in golf analytics. 
